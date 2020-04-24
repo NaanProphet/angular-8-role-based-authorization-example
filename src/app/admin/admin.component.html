@@ -1,10 +1,15 @@
 ﻿<div class="card mt-4">
-    <h4 class="card-header">Admin</h4>
+    <h4 class="card-header alert-danger">Admin</h4>
     <div class="card-body">
-        <p>This page can be accessed <u>only by administrators</u>.</p>
-        <p class="mb-1">All users from secure (admin only) api end point:</p>
-        <div *ngIf="loading" class="spinner-border spinner-border-sm"></div>
-        <ul *ngIf="users">
+        <p>This page can be accessed <em>only by administrators</em>.</p>
+        <p>Unauthorized users will be rerouted to the homepage.</p>
+    </div>
+</div>
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">All Users (Privileged API)</h4>
+    <div *ngIf="loading" class="spinner-border spinner-border-sm"></div>
+    <div *ngIf="users">
+        <ul>
             <li *ngFor="let user of users">{{user.firstName}} {{user.lastName}}</li>
         </ul>
     </div>

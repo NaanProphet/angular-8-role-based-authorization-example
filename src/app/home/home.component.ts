@@ -1,7 +1,7 @@
 ﻿import { Component } from '@angular/core';
 import { first } from 'rxjs/operators';
 
-import { User } from '@app/_models';
+import { User, Role } from '@app/_models';
 import { UserService, AuthenticationService } from '@app/_services';
 
 @Component({ templateUrl: 'home.component.html' })
@@ -23,5 +23,9 @@ export class HomeComponent {
             this.loading = false;
             this.userFromApi = user;
         });
+    }
+
+    get isAdmin() {
+        return this.currentUser && this.currentUser.role === Role.Admin;
     }
 }

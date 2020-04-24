@@ -2,12 +2,16 @@
 import { HttpRequest, HttpResponse, HttpHandler, HttpEvent, HttpInterceptor, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { delay, mergeMap, materialize, dematerialize } from 'rxjs/operators';
+import { JwtHelperService } from "@auth0/angular-jwt";
 
 import { User, Role } from '@app/_models';
 
+const helper = new JwtHelperService();
+
 const users: User[] = [
-    { id: 1, username: 'admin', password: 'admin', firstName: 'Admin', lastName: 'User', role: Role.Admin },
-    { id: 2, username: 'user', password: 'user', firstName: 'Normal', lastName: 'User', role: Role.User }
+    // tokens created with jwt.io
+    { id: 1, username: 'admin', password: 'admin', token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IkFkbWluIiwibGFzdE5hbWUiOiJVc2VyIiwicm9sZSI6IkFkbWluIn0.SJT-j3Dm99oTP07-SNg8HBVYqporwlK1omvqXcU5lMc' },
+    { id: 2, username: 'user', password: 'user', token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJ1c2VyIiwiZmlyc3ROYW1lIjoiTm9ybWFsIiwibGFzdE5hbWUiOiJVc2VyIiwicm9sZSI6IlVzZXIifQ.j1goE088GQ5sojJCxqhZneIqli_SmxJli7GPP8lkP5M' }
 ];
 
 @Injectable()
@@ -43,19 +47,24 @@ export class FakeBackendInterceptor implements HttpInterceptor {
             const { username, password } = body;
             const user = users.find(x => x.username === username && x.password === password);
             if (!user) return error('Username or password is incorrect');
+            const jwt = helper.decodeToken(user.token);
             return ok({
-                id: user.id,
+                id: jwt.id,
                 username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                role: user.role,
-                token: `fake-jwt-token.${user.id}`
+                firstName: jwt.firstName,
+                lastName: jwt.lastName,
+                role: jwt.role,
+                token: user.token
             });
         }
 
         function getUsers() {
             if (!isAdmin()) return unauthorized();
-            return ok(users);
+            let result = [];
+            users.forEach(x => {
+                result.push(helper.decodeToken(x.token));
+            });
+            return ok(result);
         }
 
         function getUserById() {
@@ -64,8 +73,7 @@ export class FakeBackendInterceptor implements HttpInterceptor {
             // only admins can access other user records
             if (!isAdmin() && currentUser().id !== idFromUrl()) return unauthorized();
 
-            const user = users.find(x => x.id === idFromUrl());
-            return ok(user);
+            return ok(currentUser());
         }
 
         // helper functions
@@ -84,17 +92,26 @@ export class FakeBackendInterceptor implements HttpInterceptor {
 
         function isLoggedIn() {
             const authHeader = headers.get('Authorization') || '';
-            return authHeader.startsWith('Bearer fake-jwt-token');
+            if (!authHeader) {
+                return false;
+            }
+            try {
+                // check for jwt expiry here
+                const jwt = helper.decodeToken(authHeader);
+                return true;
+            } catch (err) {
+                console.error('Could not decode JWT: ' + err);
+                return false;
+            }
         }
 
         function isAdmin() {
             return isLoggedIn() && currentUser().role === Role.Admin;
         }
 
-        function currentUser() {
+        function currentUser() :User {
             if (!isLoggedIn()) return;
-            const id = parseInt(headers.get('Authorization').split('.')[1]);
-            return users.find(x => x.id === id);
+            return helper.decodeToken(headers.get('Authorization'));
         }
 
         function idFromUrl() {
